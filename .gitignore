@@ -1,0 +1,12 @@
+# Model artifacts written by the containers
+output/
+output-*/
+*.tar
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# OS
+.DS_Store

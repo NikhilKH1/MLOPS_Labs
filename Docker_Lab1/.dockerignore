@@ -1,0 +1,7 @@
+output/
+*.tar
+**/__pycache__/
+**/*.pyc
+.venv/
+.DS_Store
+README.md
