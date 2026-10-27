@@ -16,6 +16,7 @@ from pathlib import Path
 
 import joblib
 import sklearn
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.datasets import load_breast_cancer
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
@@ -27,7 +28,7 @@ from sklearn.metrics import (
     recall_score,
     roc_auc_score,
 )
-from sklearn.model_selection import StratifiedKFold, cross_val_score, train_test_split
+from sklearn.model_selection import StratifiedKFold, cross_validate, train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
@@ -37,10 +38,19 @@ CANDIDATES = {
     "logistic_regression": lambda seed: LogisticRegression(max_iter=5000, random_state=seed),
     "random_forest": lambda seed: RandomForestClassifier(n_estimators=200, random_state=seed),
     "gradient_boosting": lambda seed: GradientBoostingClassifier(random_state=seed),
-    "svm": lambda seed: SVC(kernel="rbf", probability=True, random_state=seed),
+    # SVC has no predict_proba of its own; calibration adds it (replaces the deprecated probability=True)
+    "svm": lambda seed: CalibratedClassifierCV(SVC(kernel="rbf", random_state=seed), ensemble=False),
 }
 
 CLASS_NAMES = ["benign", "malignant"]
+
+# Metrics computed for every candidate during cross-validation; SELECTION_METRIC picks the winner
+CV_METRICS = ["accuracy", "f1", "roc_auc"]
+SELECTION_METRIC = "roc_auc"
+
+# Files written to OUTPUT_DIR and read back by predict.py and the dashboard
+MODEL_FILE = "model.joblib"
+REPORT_FILE = "metrics.json"
 
 
 def load_config():
@@ -85,19 +95,32 @@ def build_pipeline(name, seed):
 
 
 def select_model(X_train, y_train, config):
-    """Cross-validate the candidates on the training set and return the best one by ROC-AUC."""
+    """
+    Cross-validate the candidates on the training set only.
+    Returns the best model name (by SELECTION_METRIC) and, for every candidate,
+    the mean and standard deviation of each metric in CV_METRICS across the folds.
+    """
     names = list(CANDIDATES) if config["model_type"] == "auto" else [config["model_type"]]
     cv = StratifiedKFold(n_splits=config["cv_folds"], shuffle=True, random_state=config["random_state"])
-    cv_scores = {}
-    print(f"Cross-validating {len(names)} model(s) with {config['cv_folds']} folds:")
+    cv_results = {}
+    print(f"Cross-validating {len(names)} model(s) with {config['cv_folds']} folds "
+          f"(selecting by {SELECTION_METRIC}):")
+    print(f"  {'model':<20} {'accuracy':>9} {'f1':>9} {'roc_auc':>9}")
     for name in names:
-        scores = cross_val_score(
-            build_pipeline(name, config["random_state"]), X_train, y_train, cv=cv, scoring="roc_auc"
+        scores = cross_validate(
+            build_pipeline(name, config["random_state"]), X_train, y_train, cv=cv, scoring=CV_METRICS
         )
-        cv_scores[name] = round(float(scores.mean()), 4)
-        print(f"  {name:<20} ROC-AUC = {scores.mean():.4f} (+/- {scores.std():.4f})")
-    best = max(cv_scores, key=cv_scores.get)
-    return best, cv_scores
+        cv_results[name] = {
+            metric: {
+                "mean": round(float(scores[f"test_{metric}"].mean()), 4),
+                "std": round(float(scores[f"test_{metric}"].std()), 4),
+            }
+            for metric in CV_METRICS
+        }
+        means = [cv_results[name][metric]["mean"] for metric in CV_METRICS]
+        print(f"  {name:<20} " + " ".join(f"{m:>9.4f}" for m in means))
+    best = max(cv_results, key=lambda name: cv_results[name][SELECTION_METRIC]["mean"])
+    return best, cv_results
 
 
 def evaluate(model, X_test, y_test):
@@ -113,14 +136,14 @@ def evaluate(model, X_test, y_test):
     }, confusion_matrix(y_test, y_pred).tolist()
 
 
-if __name__ == "__main__":
-    config = load_config()
+def train(config):
+    """Run the whole job: split, select, fit, evaluate, and save the artifacts. Returns the report."""
     X, y, feature_names = load_data()
     X_train, X_test, y_train, y_test = split_data(X, y, config)
     print(f"Dataset: {len(X)} samples, {X.shape[1]} features "
           f"({len(X_train)} train / {len(X_test)} test)")
 
-    best_name, cv_scores = select_model(X_train, y_train, config)
+    best_name, cv_results = select_model(X_train, y_train, config)
     print(f"Selected model: {best_name}")
 
     # Train the selected model on the full training set and score it on the test set
@@ -132,7 +155,8 @@ if __name__ == "__main__":
         "trained_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "model": best_name,
         "config": config,
-        "cv_roc_auc": cv_scores,
+        "selection_metric": SELECTION_METRIC,
+        "cv_results": cv_results,
         "test_metrics": test_metrics,
         "confusion_matrix": {"labels": CLASS_NAMES, "rows_actual_cols_predicted": cm},
         "dataset": {
@@ -154,12 +178,17 @@ if __name__ == "__main__":
     # Save the model and the report
     output_dir = Path(config["output_dir"])
     output_dir.mkdir(parents=True, exist_ok=True)
-    joblib.dump(model, output_dir / "model.joblib")
-    (output_dir / "metrics.json").write_text(json.dumps(report, indent=2))
+    joblib.dump(model, output_dir / MODEL_FILE)
+    (output_dir / REPORT_FILE).write_text(json.dumps(report, indent=2))
 
     print("Test metrics (positive class = malignant):")
     for metric, value in test_metrics.items():
         print(f"  {metric:<10} {value:.4f}")
     print(f"Confusion matrix [benign, malignant]: {cm}")
-    print(f"Saved model.joblib and metrics.json to {output_dir.resolve()}")
+    print(f"Saved {MODEL_FILE} and {REPORT_FILE} to {output_dir.resolve()}")
     print("The model training was successful")
+    return report
+
+
+if __name__ == "__main__":
+    train(load_config())

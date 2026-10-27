@@ -1,7 +1,11 @@
 output/
+output-*/
+assets/
 *.tar
 **/__pycache__/
 **/*.pyc
+**/.pytest_cache/
 .venv/
 .DS_Store
 README.md
+docker-compose.yml

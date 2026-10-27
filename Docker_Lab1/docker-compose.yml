@@ -1,0 +1,50 @@
+# One command runs the whole pipeline:  docker compose up --build
+#
+#   tests ──(exit 0)──> trainer ──(exit 0)──> dashboard (http://localhost:8501)
+#
+# Each arrow is `depends_on: condition: service_completed_successfully`, so the
+# trainer only runs if the tests pass, and the dashboard only starts after the
+# trainer has written the model. Both share the `model-artifacts` volume.
+name: docker-lab1
+
+services:
+  tests:
+    build:
+      context: .
+      target: tests
+    image: breast-cancer-tests:v1
+
+  trainer:
+    build:
+      context: .
+      target: trainer
+    image: breast-cancer-trainer:v1
+    # Same settings as `docker run -e`; can be set from the shell, e.g. MODEL_TYPE=svm docker compose up
+    environment:
+      MODEL_TYPE: ${MODEL_TYPE:-auto}
+      TEST_SIZE: ${TEST_SIZE:-0.2}
+      RANDOM_STATE: ${RANDOM_STATE:-42}
+      CV_FOLDS: ${CV_FOLDS:-5}
+    volumes:
+      - model-artifacts:/app/output
+    depends_on:
+      tests:
+        condition: service_completed_successfully
+
+  dashboard:
+    build:
+      context: .
+      target: dashboard
+    image: breast-cancer-dashboard:v1
+    ports:
+      - "8501:8501"
+    # Read-only: the dashboard can load the model but never change it
+    volumes:
+      - model-artifacts:/app/output:ro
+    depends_on:
+      trainer:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  model-artifacts:

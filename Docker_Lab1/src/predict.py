@@ -6,14 +6,10 @@ was kept after the container that trained it was removed:
     docker run --rm -v "$(pwd)/output:/app/output" breast-cancer-trainer:v1 python predict.py
 """
 import argparse
-import json
-import os
 import sys
-from pathlib import Path
 
-import joblib
-
-from main import CLASS_NAMES, load_data, split_data
+from artifacts import load_artifacts, load_test_split, missing_artifacts, output_dir
+from main import CLASS_NAMES, MODEL_FILE
 
 
 def main():
@@ -22,19 +18,17 @@ def main():
                         help="number of test samples to predict (default: 10)")
     args = parser.parse_args()
 
-    output_dir = Path(os.environ.get("OUTPUT_DIR", "output"))
-    model_path = output_dir / "model.joblib"
-    if not model_path.exists():
-        sys.exit(f"No model found at {model_path}. Run main.py first with the same volume mounted.")
+    directory = output_dir()
+    if missing_artifacts(directory):
+        sys.exit(f"No model found at {directory / MODEL_FILE}. "
+                 "Run main.py first with the same volume mounted.")
 
-    model = joblib.load(model_path)
-    report = json.loads((output_dir / "metrics.json").read_text())
+    model, report = load_artifacts(directory)
     print(f"Loaded {report['model']} trained at {report['trained_at']} "
           f"in container {report['environment']['hostname']}")
 
     # Rebuild the same test split the model was evaluated on, using the saved config
-    X, y, _ = load_data()
-    _, X_test, _, y_test = split_data(X, y, report["config"])
+    X_test, y_test, _ = load_test_split(report["config"])
     X_sample, y_sample = X_test[: args.num_samples], y_test[: args.num_samples]
 
     predictions = model.predict(X_sample)
