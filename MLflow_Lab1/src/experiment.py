@@ -16,6 +16,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import KFold, cross_validate, train_test_split
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
+from src.diagnostics import save_diagnostics
 
 ROOT = Path(__file__).resolve().parents[1]
 SEED = 42
@@ -153,6 +154,8 @@ def train(root=ROOT):
         table.to_csv(output / "model_comparison.csv", index=False)
         plot_comparison(table, output / "model_comparison.png")
         model = fitted[best["candidate"]]
+        save_diagnostics(model, X_test, y_test, output, best["candidate"])
+        mlflow.log_params({"importance_repeats": 30, "importance_scoring": "neg_root_mean_squared_error", "diagnostics_partition": "held_out_test"})
         model_path = root / "models" / parent.info.run_id
         model_path.parent.mkdir(exist_ok=True)
         mlflow.sklearn.save_model(model, str(model_path), signature=infer_signature(X_train, model.predict(X_train)), pip_requirements=str(ROOT / "requirements.txt"))

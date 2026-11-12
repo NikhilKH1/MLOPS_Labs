@@ -1,10 +1,10 @@
 {
   "best_candidate": "ridge_alpha_1",
   "selection_metric": "cv_rmse",
-  "parent_run_id": "a0cc9a1ccd154ac0830ca105bff4d347",
-  "candidate_run_id": "5e431defbdc7447f84888b0940db746e",
-  "model_path": "models/a0cc9a1ccd154ac0830ca105bff4d347",
-  "model_uri": "runs:/a0cc9a1ccd154ac0830ca105bff4d347/model",
+  "parent_run_id": "9cdd3d344e33449489943d8c6ebb8bcb",
+  "candidate_run_id": "459ecbcb2efd47019a4a34c2f904338e",
+  "model_path": "models/9cdd3d344e33449489943d8c6ebb8bcb",
+  "model_uri": "runs:/9cdd3d344e33449489943d8c6ebb8bcb/model",
   "metrics": {
     "cv_rmse": 55.37417536867345,
     "test_mae": 42.81199941834889,

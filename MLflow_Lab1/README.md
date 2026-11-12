@@ -18,6 +18,7 @@ The original `linear_regression.py` trains ElasticNet on downloaded Wine Quality
 - Add named parent/child MLflow runs, model-type and selection tags, explicit parameters, CV metrics, test MAE/RMSE/R², signatures, input examples, and model artifacts.
 - Export a comparison CSV/chart, a selected-model summary, a local MLflow-format pipeline, and JSON example input. Verify predictions match after reloading.
 - Add reusable functions, command-line training/prediction, automated tests, pinned dependencies, and a shared SQLite tracking configuration.
+- Add held-out permutation feature importance (30 repeats), predicted-versus-actual and residual plots, and per-observation prediction errors; log these as MLflow artifacts.
 
 ## Dataset and methodology
 
@@ -86,15 +87,43 @@ Selected: **Ridge, alpha=1**, using lowest CV RMSE (55.3742). Random Forest dept
 
 Reloaded example prediction: **139.862774**; actual example target: **219**. This single prediction illustrates inference, not overall accuracy.
 
-Validation: **9 tests passed** (four upstream Pydantic deprecation warnings). Training, saved-model round trip, both prediction commands, and the local MLflow UI were exercised successfully.
+Validation: **12 tests passed** (18 upstream Pydantic/Matplotlib dependency deprecation warnings). Training, saved-model round trip, both prediction commands, and the local MLflow UI were exercised successfully.
 
 ### Actual MLflow screenshot
 
-Captured from the running local UI after training; all ten runs are visible.
+Captured from the original successful training execution; its ten runs are visible. Subsequent executions add another parent and nine children. The latest run IDs are recorded in `outputs/best_model.json`.
 
 ![Actual MLflow runs](outputs/mlflow_runs.jpg)
 
 ![Model comparison](outputs/model_comparison.png)
+
+## Explainability and error analysis
+
+Every `python train.py` execution produces these post-selection diagnostics for the CV-selected pipeline on the 89 held-out observations. They are descriptive only: they do not select features, tune parameters, or change the winner.
+
+### Permutation feature importance
+
+Using scikit-learn's [permutation importance](https://scikit-learn.org/stable/modules/permutation_importance.html), shuffle each raw input feature 30 times with seed 42 and measure the increase in RMSE relative to the unshuffled test predictions. The complete fitted pipeline remains fixed. Positive values mean shuffling worsens accuracy; negative values mean shuffling slightly improves it on this sample. Error bars show the standard deviation across permutations, not confidence intervals.
+
+For the selected Ridge model, the largest mean RMSE increases were **s5: 17.106**, **s1: 14.425**, and **BMI: 9.986** target units. These describe the model's reliance on inputs, not causal effects. Correlated serum measurements can distort individual rankings; a low importance does not establish that a feature is intrinsically irrelevant.
+
+![Permutation feature importance](outputs/permutation_importance.png)
+
+### Prediction errors
+
+The plots show predicted versus actual values with a perfect-prediction reference, residuals versus predicted values with a zero reference, and a residual histogram. Residual is **actual minus predicted**: positive means underprediction and negative means overprediction.
+
+Mean residual is **3.946** target units, but this small average hides substantial individual errors. The largest absolute error is **153.386**: dataset row 56 has actual target 52 and prediction 205.386. The next largest is row 77: actual 200 and prediction 73.592 (underprediction by 126.408). These cases demonstrate why aggregate metrics alone are insufficient.
+
+![Held-out error analysis](outputs/error_analysis.png)
+
+Generated files:
+
+- `outputs/permutation_importance.csv` and `.png`: all ten feature importances, permutation standard deviations, and repeat count.
+- `outputs/prediction_errors.csv`: original dataset row index, actual value, prediction, signed residual, and absolute error for all 89 test rows.
+- `outputs/error_analysis.png`: the three error-analysis panels.
+
+The latest parent MLflow run stores these files under `comparison/`, alongside the existing comparison outputs. Its parameters record the scoring rule, repeat count, and diagnostic partition. Tests check signal detection, deterministic permutations, unchanged input data, residual signs, row identity, and generated artifacts. No additional dependencies are needed.
 
 ## Limitations and conclusion
 
