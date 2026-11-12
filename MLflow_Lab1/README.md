@@ -4,21 +4,21 @@ Compare three regression model families, track their experiments with MLflow, an
 
 ## Acknowledgment and original lab
 
-Based on Northeastern University's [MLflow Lab 1 by Ramin Mohammadi and contributors](https://github.com/raminmohammadi/MLOps/tree/main/Labs/Experiment_Tracking_Labs/Mlflow_Labs/Lab1) and the [guide by Sai Akhilesh Ande](https://www.mlwithramin.com/blog/mlflow-lab1). The older `Labs/Mlflow_Labs/Lab1` link now returns 404; the link above is the verified location.
+Based on [MLflow Lab 1 by Ramin Mohammadi and contributors](https://github.com/raminmohammadi/MLOps/tree/main/Labs/Experiment_Tracking_Labs/Mlflow_Labs/Lab1) and the [guide by Sai Akhilesh Ande](https://www.mlwithramin.com/blog/mlflow-lab1).
 
 The original `linear_regression.py` trains ElasticNet on downloaded Wine Quality data, accepts alpha/l1_ratio arguments, logs regression metrics and a model. `starter.ipynb` demonstrates autologging, Random Forest on Diabetes, and saving/loading. `serving.py` demonstrates model dependency artifacts using XGBoost and Iris. This project is an independently implemented extension of those tracking concepts.
 
 ### Meaningful modifications
 
-- Replace Wine Quality/ElasticNet in the regression script with Diabetes and three model families: LinearRegression, Ridge, RandomForestRegressor. **Diabetes is already used in the original starter notebook; it is not claimed as a dataset new to the entire lab.**
-- Compare nine configurations: one Linear Regression, Ridge alpha 0.1/1/10/100, and Random Forest depth 3/unlimited × minimum leaf size 1/5 (150 trees).
-- Fix the split, CV shuffle, and Random Forest seeds at 42.
-- Load raw features (`scaled=False`), with StandardScaler fitted inside each training fold through a Pipeline, instead of relying on full-dataset scaling.
-- Use five-fold training-only CV for selection, then report held-out test metrics. The test set never chooses hyperparameters or the winner.
-- Add named parent/child MLflow runs, model-type and selection tags, explicit parameters, CV metrics, test MAE/RMSE/R², signatures, input examples, and model artifacts.
-- Export a comparison CSV/chart, a selected-model summary, a local MLflow-format pipeline, and JSON example input. Verify predictions match after reloading.
-- Add reusable functions, command-line training/prediction, automated tests, pinned dependencies, and a shared SQLite tracking configuration.
-- Add held-out permutation feature importance (30 repeats), predicted-versus-actual and residual plots, and per-observation prediction errors; log these as MLflow artifacts.
+- Replaced Wine Quality/ElasticNet in the regression script with Diabetes and three model families: LinearRegression, Ridge, RandomForestRegressor. **Diabetes is already used in the original starter notebook; it is not claimed as a dataset new to the entire lab.**
+- Compared nine configurations: one Linear Regression, Ridge alpha 0.1/1/10/100, and Random Forest depth 3/unlimited × minimum leaf size 1/5 (150 trees).
+- Fixed the split, CV shuffle, and Random Forest seeds at 42.
+- Loaded raw features (`scaled=False`), with StandardScaler fitted inside each training fold through a Pipeline, instead of relying on full-dataset scaling.
+- Used five-fold training-only CV for selection, then reported held-out test metrics. The test set never chooses hyperparameters or the winner.
+- Added named parent/child MLflow runs, model-type and selection tags, explicit parameters, CV metrics, test MAE/RMSE/R², signatures, input examples, and model artifacts.
+- Exported a comparison CSV/chart, a selected-model summary, a local MLflow-format pipeline, and JSON example input. Verified that predictions matched after reloading.
+- Added reusable functions, command-line training/prediction, automated tests, pinned dependencies, and a shared SQLite tracking configuration.
+- Added held-out permutation feature importance (30 repeats), predicted-versus-actual and residual plots, and per-observation prediction errors; logged these as MLflow artifacts.
 
 ## Dataset and methodology
 
