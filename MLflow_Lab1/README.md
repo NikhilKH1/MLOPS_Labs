@@ -18,6 +18,7 @@ The original `linear_regression.py` trains ElasticNet on downloaded Wine Quality
 - Added named parent/child MLflow runs, model-type and selection tags, explicit parameters, CV metrics, test MAE/RMSE/R², signatures, input examples, and model artifacts.
 - Exported a comparison CSV/chart, a selected-model summary, a local MLflow-format pipeline, and JSON example input. Verified that predictions matched after reloading.
 - Added reusable functions, command-line training/prediction, automated tests, pinned dependencies, and a shared SQLite tracking configuration.
+- Added a Streamlit dashboard with model/metric filters, explainability and error views, CSV downloads, and interactive saved-model prediction.
 - Added held-out permutation feature importance (30 repeats), predicted-versus-actual and residual plots, and per-observation prediction errors; logged these as MLflow artifacts.
 
 ## Dataset and methodology
@@ -59,9 +60,35 @@ Each training invocation creates a new parent plus nine child runs and a uniquel
 
 Custom inference input is a JSON list of records with exactly the ten raw feature names listed above. The saved pipeline performs scaling. `outputs/example_input.json` is a real held-out example. Missing models, missing/extra columns, empty input, and non-finite values produce actionable errors.
 
+## Interactive dashboard
+
+Install the updated `requirements-lock.txt` in the virtual environment, then run:
+
+```bash
+python -m pip install -r requirements-lock.txt
+streamlit run dashboard.py --server.address 127.0.0.1 --server.port 8501
+```
+
+Open [the local dashboard](http://127.0.0.1:8501). Use the sidebar's **Explore** selector to switch views; in a narrow window, open the sidebar with the arrow at the top left. Stop the server with Ctrl-C.
+
+- **Model comparison:** filter model families, select CV RMSE/test RMSE/test MAE/test R², inspect the sortable table, and download the filtered CSV. The green bar identifies the CV-selected model even when sorting by test metrics.
+- **Feature importance:** explore the interactive permutation-importance chart with standard-deviation lines, hover values, and CSV export.
+- **Error analysis:** inspect the three diagnostic plots, filter observations by absolute error, and download the filtered errors.
+- **Prediction:** start from the held-out example or dataset medians, edit all ten raw features, and run the saved pipeline. Observed feature ranges appear in help text. Invalid sex codes/non-finite inputs are rejected; values outside observed ranges show an extrapolation warning.
+
+The dashboard reads the latest `outputs/` files and model referenced by `best_model.json`; it does not train or change experiment results. **Refresh results** reloads the files after training. Existing charts and comparisons work directly from the committed results. On a fresh clone, run `python train.py` before using predictions: generated model files are not committed. A missing model produces a clear message instead of breaking the other views. If results are missing, run training to regenerate them.
+
+The default held-out example returns **139.863**, verified against the saved pipeline. The UI is local-only and does not require an MLflow UI server or any paid services. Streamlit usage statistics are disabled in the project configuration. MLflow remains available separately on port 5001 for run/artifact inspection.
+
+Browser validation confirmed the rendered comparison view and a successful live prediction. Automated dashboard tests cover family/metric/error filters, prediction agreement, invalid input, and missing-model/results behavior.
+
+![Actual dashboard overview in a narrow browser window](docs/dashboard.jpg)
+
 ## Files
 
 - `train.py`, `predict.py`: command-line entry points.
+- `dashboard.py`, `src/dashboard.py`, `.streamlit/config.toml`: interactive local dashboard.
+- `tests/test_dashboard.py`: dashboard filters, prediction validation, and missing-artifact handling.
 - `src/experiment.py`: data loading, preprocessing, selection, tracking, visualization, and inference.
 - `tests/test_experiment.py`: data, metrics, reproducibility, leakage checks, selection, tracking, and prediction tests.
 - `outputs/`: small, committed measured results and chart.
@@ -87,7 +114,7 @@ Selected: **Ridge, alpha=1**, using lowest CV RMSE (55.3742). Random Forest dept
 
 Reloaded example prediction: **139.862774**; actual example target: **219**. This single prediction illustrates inference, not overall accuracy.
 
-Validation: **12 tests passed** (18 upstream Pydantic/Matplotlib dependency deprecation warnings). Training, saved-model round trip, both prediction commands, and the local MLflow UI were exercised successfully.
+Validation: **15 tests passed** (19 upstream dependency deprecation warnings). Training, saved-model round trip, both prediction commands, and the local MLflow UI were exercised successfully.
 
 ### Actual MLflow screenshot
 
