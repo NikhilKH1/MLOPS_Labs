@@ -1,0 +1,9 @@
+mlflow==2.22.0
+scikit-learn==1.6.1
+numpy==1.26.4
+scipy==1.15.3
+SQLAlchemy==2.0.41
+pydantic==2.10.6
+pandas==2.2.3
+matplotlib==3.10.3
+pytest==8.3.5

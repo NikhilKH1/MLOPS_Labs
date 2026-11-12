@@ -5,3 +5,4 @@ My lab submissions for the MLOps course, based on the labs in [raminmohammadi/ML
 | Lab | Folder | Summary |
 |---|---|---|
 | Lab Assignment 3: Docker Lab 1 | [`Docker_Lab1/`](Docker_Lab1/) | A breast cancer classifier, trained and served with Docker Compose. Tests run first, then a training container picks the best of four models with cross-validation. A Streamlit dashboard, with a healthcheck, starts only after training succeeds. The trainer and dashboard share the model through a named volume. Run it with `docker compose up --build`. |
+| Lab Assignment 4: MLflow Lab 1 | [`MLflow_Lab1/`](MLflow_Lab1/) | Track nine Diabetes regression configurations across three model families, select with training-only cross-validation, compare held-out results, and reload the saved pipeline for inference. Includes tests, measured results, and an actual MLflow UI screenshot. |

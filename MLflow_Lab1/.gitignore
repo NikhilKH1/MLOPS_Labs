@@ -1,0 +1,10 @@
+.venv/
+.python/
+.pytest_cache/
+.mplconfig/
+__pycache__/
+*.pyc
+mlflow.db*
+mlartifacts/
+models/
+*.log
