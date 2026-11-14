@@ -1,20 +1,20 @@
 # Assignment 4 — Reproducible MLflow Experiment Tracking
 
-Compare three regression model families, track their experiments with MLflow, and reload a selected pipeline for inference. This lab focuses on experiment tracking and reproducible model selection.
+This lab compares Linear Regression, Ridge, and Random Forest on the Diabetes dataset. MLflow records the experiments, and a Streamlit dashboard displays the results and runs predictions with the saved model.
 
 ## Acknowledgment and original lab
 
 Based on [MLflow Lab 1 by Ramin Mohammadi and contributors](https://github.com/raminmohammadi/MLOps/tree/main/Labs/Experiment_Tracking_Labs/Mlflow_Labs/Lab1) and the [guide by Sai Akhilesh Ande](https://www.mlwithramin.com/blog/mlflow-lab1).
 
-The original `linear_regression.py` trains ElasticNet on downloaded Wine Quality data, accepts alpha/l1_ratio arguments, logs regression metrics and a model. `starter.ipynb` demonstrates autologging, Random Forest on Diabetes, and saving/loading. `serving.py` demonstrates model dependency artifacts using XGBoost and Iris. This project is an independently implemented extension of those tracking concepts.
+The original `linear_regression.py` trains ElasticNet on downloaded Wine Quality data, accepts alpha/l1_ratio arguments, logs regression metrics and a model. `starter.ipynb` demonstrates autologging, Random Forest on Diabetes, and saving/loading. `serving.py` demonstrates model dependency artifacts using XGBoost and Iris.
 
 ### Meaningful modifications
 
-- Replaced Wine Quality/ElasticNet in the regression script with Diabetes and three model families: LinearRegression, Ridge, RandomForestRegressor. **Diabetes is already used in the original starter notebook; it is not claimed as a dataset new to the entire lab.**
+- Replaced Wine Quality/ElasticNet in the regression script with Diabetes and three model families: LinearRegression, Ridge, RandomForestRegressor. The starter notebook also uses Diabetes; here it replaces Wine Quality in the regression example.
 - Compared nine configurations: one Linear Regression, Ridge alpha 0.1/1/10/100, and Random Forest depth 3/unlimited × minimum leaf size 1/5 (150 trees).
 - Fixed the split, CV shuffle, and Random Forest seeds at 42.
 - Loaded raw features (`scaled=False`), with StandardScaler fitted inside each training fold through a Pipeline, instead of relying on full-dataset scaling.
-- Used five-fold training-only CV for selection, then reported held-out test metrics. The test set never chooses hyperparameters or the winner.
+- Used five-fold training-only CV for selection, then reported held-out test metrics.
 - Added named parent/child MLflow runs, model-type and selection tags, explicit parameters, CV metrics, test MAE/RMSE/R², signatures, input examples, and model artifacts.
 - Exported a comparison CSV/chart, a selected-model summary, a local MLflow-format pipeline, and JSON example input. Verified that predictions matched after reloading.
 - Added reusable functions, command-line training/prediction, automated tests, pinned dependencies, and a shared SQLite tracking configuration.
@@ -25,7 +25,7 @@ The original `linear_regression.py` trains ElasticNet on downloaded Wine Quality
 
 Scikit-learn's bundled [Diabetes regression dataset](https://scikit-learn.org/stable/modules/generated/sklearn.datasets.load_diabetes.html) has 442 observations and ten baseline features: age, sex, BMI, blood pressure, and six serum measurements. The target is a quantitative measure of disease progression one year after baseline. This is a regression exercise, not a diabetes diagnosis tool. No dataset download is needed.
 
-An 80/20 split yields 353 training rows and 89 test rows. Every candidate uses the same five shuffled training folds. Lowest mean validation RMSE selects the winner; fold standard deviation is reported for context, not as a confidence interval. All candidates are then fitted on the training partition and evaluated on the untouched test partition for a final descriptive comparison. A lower test RMSE for another candidate would not change the selected model. The exported model remains trained only on the 353 training rows, preserving the meaning of the reported test results.
+The 80/20 split gives 353 training rows and 89 test rows. All candidates use the same five shuffled training folds. The model with the lowest mean validation RMSE is selected before evaluating the test set. The saved model is trained on the 353 training rows only. CV error bars show the standard deviation across folds, not confidence intervals.
 
 ## Setup
 
@@ -38,7 +38,7 @@ source .venv/bin/activate
 python -m pip install -r requirements-lock.txt
 ```
 
-`requirements.txt` pins the direct dependencies; `requirements-lock.txt` records the complete tested environment. MLflow 2.22.0 is deliberately pinned so the tracking and model APIs stay consistent.
+`requirements.txt` pins the direct dependencies; `requirements-lock.txt` records the complete tested environment. The tested MLflow version is 2.22.0.
 
 ## Run
 
@@ -54,18 +54,17 @@ mlflow ui --backend-store-uri sqlite:///mlflow.db --host 127.0.0.1 --port 5001
 
 Open http://127.0.0.1:5001 and choose `lab4-diabetes-regression`. Expand the `comparison` parent run to see nine candidates. Compare `cv_rmse`, `test_rmse`, `test_mae`, and `test_r2`; inspect each run's `model` artifact and the parent's `comparison` artifacts. Stop the UI with Ctrl-C.
 
-Training resolves `mlflow.db` relative to the lab's source directory; the UI command above uses that same database when run **from this directory**. MLflow stores artifacts in `mlartifacts/` with absolute local artifact locations. If you move the project to another machine, rerun training to create that machine's database and models.
+Training and the UI use the same `mlflow.db` when the UI command is run **from `MLflow_Lab1`**. Artifacts are stored in `mlartifacts/` using absolute local paths.
 
-Each training invocation creates a new parent plus nine child runs and a uniquely named local model under `models/<parent_run_id>/`. The files in `outputs/` are refreshed to describe the latest completed execution. Prediction reads `outputs/best_model.json`; on a fresh clone, run training first because generated models are intentionally excluded from Git.
+Each training run creates one parent and nine child runs, saves the model under `models/<parent_run_id>/`, and updates `outputs/`. Prediction uses `outputs/best_model.json` to locate the model. **After cloning or moving the project, run `python train.py` before making predictions.** Models and the tracking database are excluded from Git.
 
-Custom inference input is a JSON list of records with exactly the ten raw feature names listed above. The saved pipeline performs scaling. `outputs/example_input.json` is a real held-out example. Missing models, missing/extra columns, empty input, and non-finite values produce actionable errors.
+Custom inference input is a JSON list of records with exactly the ten raw feature names listed above. The saved pipeline performs scaling. `outputs/example_input.json` is a real held-out example. The prediction script checks for missing models and invalid input.
 
 ## Interactive dashboard
 
-Install the updated `requirements-lock.txt` in the virtual environment, then run:
+After setup, launch the dashboard from `MLflow_Lab1`:
 
 ```bash
-python -m pip install -r requirements-lock.txt
 streamlit run dashboard.py --server.address 127.0.0.1 --server.port 8501
 ```
 
@@ -76,11 +75,11 @@ Open [the local dashboard](http://127.0.0.1:8501). Use the sidebar's **Explore**
 - **Error analysis:** inspect the three diagnostic plots, filter observations by absolute error, and download the filtered errors.
 - **Prediction:** start from the held-out example or dataset medians, edit all ten raw features, and run the saved pipeline. Observed feature ranges appear in help text. Invalid sex codes/non-finite inputs are rejected; values outside observed ranges show an extrapolation warning.
 
-The dashboard reads the latest `outputs/` files and model referenced by `best_model.json`; it does not train or change experiment results. **Refresh results** reloads the files after training. Existing charts and comparisons work directly from the committed results. On a fresh clone, run `python train.py` before using predictions: generated model files are not committed. A missing model produces a clear message instead of breaking the other views. If results are missing, run training to regenerate them.
+The dashboard reads `outputs/` and the saved model. Click **Refresh results** after training. Committed charts and comparisons can be viewed without a local model; the prediction page shows setup instructions if the model is missing.
 
-The default held-out example returns **139.863**, verified against the saved pipeline. The UI is local-only and does not require an MLflow UI server or any paid services. Streamlit usage statistics are disabled in the project configuration. MLflow remains available separately on port 5001 for run/artifact inspection.
+The dashboard runs locally on port 8501, separately from the MLflow UI on port 5001. Streamlit usage statistics are disabled.
 
-Browser validation confirmed the rendered comparison view and a successful live prediction. Automated dashboard tests cover family/metric/error filters, prediction agreement, invalid input, and missing-model/results behavior.
+The dashboard was tested in the browser, including the prediction form. Automated tests cover filters, prediction agreement, invalid input, and missing files.
 
 ![Actual dashboard overview in a narrow browser window](docs/dashboard.jpg)
 
@@ -110,15 +109,15 @@ Measured locally on November 12, 2026 with Python 3.11.18. Nine configurations p
 | forest_depth_3_leaf_1 | 58.8498 | 42.8978 | 52.9226 | 0.4714 |
 | forest_depth_None_leaf_1 | 59.0130 | 44.5039 | 54.8199 | 0.4328 |
 
-Selected: **Ridge, alpha=1**, using lowest CV RMSE (55.3742). Random Forest depth=3/leaf=5 happened to have the lowest test RMSE (52.8121), but changing the winner after seeing that would use the test set for selection. Ridge remains the exported model.
+Selected: **Ridge, alpha=1**, using lowest CV RMSE (55.3742). Random Forest depth=3/leaf=5 had a lower test RMSE (52.8121), but Ridge was selected using CV and remains the saved model.
 
 Reloaded example prediction: **139.862774**; actual example target: **219**. This single prediction illustrates inference, not overall accuracy.
 
-Validation: **15 tests passed** (19 upstream dependency deprecation warnings). Training, saved-model round trip, both prediction commands, and the local MLflow UI were exercised successfully.
+Validation: **15 tests passed** (19 upstream dependency deprecation warnings). Training, model reloading, both prediction commands, and the MLflow UI were checked successfully.
 
 ### Actual MLflow screenshot
 
-Captured from the original successful training execution; its ten runs are visible. Subsequent executions add another parent and nine children. The latest run IDs are recorded in `outputs/best_model.json`.
+This screenshot shows the first successful execution. The latest run IDs are in `outputs/best_model.json`.
 
 ![Actual MLflow runs](outputs/mlflow_runs.jpg)
 
@@ -126,13 +125,13 @@ Captured from the original successful training execution; its ten runs are visib
 
 ## Explainability and error analysis
 
-Every `python train.py` execution produces these post-selection diagnostics for the CV-selected pipeline on the 89 held-out observations. They are descriptive only: they do not select features, tune parameters, or change the winner.
+Training also generates the following diagnostics for the selected model on the 89 test observations. They are used to understand its predictions, not to tune the model.
 
 ### Permutation feature importance
 
-Using scikit-learn's [permutation importance](https://scikit-learn.org/stable/modules/permutation_importance.html), shuffle each raw input feature 30 times with seed 42 and measure the increase in RMSE relative to the unshuffled test predictions. The complete fitted pipeline remains fixed. Positive values mean shuffling worsens accuracy; negative values mean shuffling slightly improves it on this sample. Error bars show the standard deviation across permutations, not confidence intervals.
+Scikit-learn's [permutation importance](https://scikit-learn.org/stable/modules/permutation_importance.html) shuffles each input feature 30 times with seed 42 and measures the change in test RMSE. The model is not retrained. Positive values mean shuffling worsens accuracy; negative values mean shuffling slightly improves it on this sample. Error bars show the standard deviation across permutations, not confidence intervals.
 
-For the selected Ridge model, the largest mean RMSE increases were **s5: 17.106**, **s1: 14.425**, and **BMI: 9.986** target units. These describe the model's reliance on inputs, not causal effects. Correlated serum measurements can distort individual rankings; a low importance does not establish that a feature is intrinsically irrelevant.
+For the selected Ridge model, the largest mean RMSE increases were **s5: 17.106**, **s1: 14.425**, and **BMI: 9.986** target units. These values show how much this model relies on each input, not causal effects. Correlated serum measurements can affect the rankings, so low importance does not necessarily mean a feature is unhelpful.
 
 ![Permutation feature importance](outputs/permutation_importance.png)
 
@@ -140,7 +139,7 @@ For the selected Ridge model, the largest mean RMSE increases were **s5: 17.106*
 
 The plots show predicted versus actual values with a perfect-prediction reference, residuals versus predicted values with a zero reference, and a residual histogram. Residual is **actual minus predicted**: positive means underprediction and negative means overprediction.
 
-Mean residual is **3.946** target units, but this small average hides substantial individual errors. The largest absolute error is **153.386**: dataset row 56 has actual target 52 and prediction 205.386. The next largest is row 77: actual 200 and prediction 73.592 (underprediction by 126.408). These cases demonstrate why aggregate metrics alone are insufficient.
+Mean residual is **3.946** target units, but some individual errors are much larger. The largest absolute error is **153.386**: dataset row 56 has actual target 52 and prediction 205.386. The next largest is row 77: actual 200 and prediction 73.592 (underprediction by 126.408).
 
 ![Held-out error analysis](outputs/error_analysis.png)
 
@@ -150,14 +149,14 @@ Generated files:
 - `outputs/prediction_errors.csv`: original dataset row index, actual value, prediction, signed residual, and absolute error for all 89 test rows.
 - `outputs/error_analysis.png`: the three error-analysis panels.
 
-The latest parent MLflow run stores these files under `comparison/`, alongside the existing comparison outputs. Its parameters record the scoring rule, repeat count, and diagnostic partition. Tests check signal detection, deterministic permutations, unchanged input data, residual signs, row identity, and generated artifacts. No additional dependencies are needed.
+These files are also saved under `comparison/` in the parent MLflow run. Tests check permutation reproducibility, unchanged input data, residual calculations, and generated files.
 
 ## Limitations and conclusion
 
-This small dataset and one fixed holdout cannot establish generalization to other populations. CV comparisons also have selection uncertainty; the standard-deviation bars are descriptive. The experiment does not evaluate fairness, clinical utility, or deployment drift. The contribution is a repeatable, inspectable experiment-to-inference workflow rather than a production clinical model.
+Results are based on a small dataset and one train/test split, so they may differ with another split or population. Fairness, clinical usefulness, and changes in data over time were not evaluated.
 
-No cloud services are required. The SQLite backend is intended for local coursework. The GitHub submission contains source and measured summaries; training regenerates the excluded model artifacts and database.
+This lab demonstrates experiment tracking, model comparison, and loading a saved model for predictions. It runs locally with SQLite and requires no cloud services.
 
 ### Dependency compatibility
 
-SQLAlchemy 2.0.41 is pinned because MLflow 2.22 imports a pool class removed in SQLAlchemy 2.1. The complete lock file prevents future dependency resolution from silently changing the tested environment.
+SQLAlchemy 2.0.41 is pinned because MLflow 2.22 imports a pool class removed in SQLAlchemy 2.1. Use the lock file to install the tested dependency versions.
