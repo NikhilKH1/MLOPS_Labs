@@ -1,0 +1,24 @@
+# Airflow runtime state
+.env
+airflow.cfg
+airflow.db
+logs/
+plugins/
+config/
+
+# Generated pipeline artifacts (keep directory placeholders and selected reports)
+artifacts/*
+!artifacts/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+.cache/
+
+# Local/editor files
+.DS_Store
+.idea/
+.vscode/

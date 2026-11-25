@@ -1,0 +1,40 @@
+{
+  "duplicate_rows": 0,
+  "errors": [],
+  "non_finite_values": 0,
+  "null_counts": {
+    "AveBedrms": 0,
+    "AveOccup": 0,
+    "AveRooms": 0,
+    "HouseAge": 0,
+    "Latitude": 0,
+    "Longitude": 0,
+    "MedHouseVal": 0,
+    "MedInc": 0,
+    "Population": 0
+  },
+  "range_violations": {
+    "AveBedrms": 0,
+    "AveOccup": 0,
+    "AveRooms": 0,
+    "HouseAge": 0,
+    "Latitude": 0,
+    "Longitude": 0,
+    "MedHouseVal": 0,
+    "MedInc": 0,
+    "Population": 0
+  },
+  "required_columns": [
+    "MedInc",
+    "HouseAge",
+    "AveRooms",
+    "AveBedrms",
+    "Population",
+    "AveOccup",
+    "Latitude",
+    "Longitude",
+    "MedHouseVal"
+  ],
+  "rows": 20640,
+  "status": "passed"
+}

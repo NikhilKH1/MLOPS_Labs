@@ -1,0 +1,9 @@
+{
+  "mae": 0.3062394628506502,
+  "mean_residual": 0.0038995239965022993,
+  "median_absolute_error": 0.1970256283020279,
+  "r2": 0.8367301706090069,
+  "rmse": 0.46418081918272663,
+  "selected_model": "hist_gradient_boosting",
+  "test_rows": 4128
+}
